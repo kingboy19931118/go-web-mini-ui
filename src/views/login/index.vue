@@ -66,7 +66,7 @@ export default {
       }
     }
     return {
-      imgSrc: require('@/assets/backgd-image/backimg.jpg'),
+      // imgSrc: require('@/assets/backgd-image/backimg.jpg'),
       loginForm: {
         username: '',
         password: ''

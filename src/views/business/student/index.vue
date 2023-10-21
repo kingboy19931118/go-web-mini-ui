@@ -17,6 +17,9 @@
         <el-form-item label="手机号">
           <el-input v-model.trim="params.mobile" clearable placeholder="手机号" @clear="search" />
         </el-form-item>
+        <el-form-item label="上课时间">
+          <el-input v-model.trim="params.course" clearable placeholder="上课时间" @clear="search" />
+        </el-form-item>
         <el-form-item>
           <el-button :loading="loading" icon="el-icon-search" type="primary" @click="search">查询学员</el-button>
         </el-form-item>
@@ -26,9 +29,12 @@
         <el-form-item>
           <el-button :disabled="multipleSelection.length === 0" :loading="loading" icon="el-icon-delete" type="danger" @click="batchDelete">批量删除</el-button>
         </el-form-item>
+        <el-form-item>
+          <el-button :disabled="multipleSelection.length === 0" :loading="loading" icon="el-icon-edit" type="primary" @click="batchInClass">批量销课</el-button>
+        </el-form-item>
       </el-form>
 
-      <el-table v-loading="loading" :data="tableData" border stripe style="width: 100%" @selection-change="handleSelectionChange">
+      <el-table v-loading="loading" :data="tableData" border stripe style="width: 100%" prop="id" @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="55" align="center" />
         <el-table-column show-overflow-tooltip sortable prop="name" label="姓名" />
         <el-table-column show-overflow-tooltip sortable prop="age" label="年龄" />
@@ -42,15 +48,22 @@
             >{{ scope.row.status }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column show-overflow-tooltip sortable prop="classHour" label="课时" />
+        <el-table-column show-overflow-tooltip sortable prop="course" label="上课时间" />
         <el-table-column show-overflow-tooltip sortable prop="leftClassHour" label="剩余课时" />
+        <el-table-column show-overflow-tooltip sortable prop="classHour" label="课时" />
+        <el-table-column show-overflow-tooltip sortable prop="baseClassHour" label="基础课时" />
+        <el-table-column show-overflow-tooltip sortable prop="freeClassHour" label="赠送课时" />
+        <el-table-column show-overflow-tooltip sortable prop="inClassHour" label="销课课时" />
         <el-table-column show-overflow-tooltip sortable prop="signAmount" label="报名金额" />
+        <el-table-column show-overflow-tooltip sortable prop="unitPrice" label="课程单价" />
+        <el-table-column show-overflow-tooltip sortable prop="balance" label="余额" />
         <el-table-column show-overflow-tooltip sortable prop="mobile" label="手机号" />
-        <el-table-column show-overflow-tooltip sortable prop="createAt" label="创建时间" />
-        <el-table-column show-overflow-tooltip sortable prop="updateAt" label="更新时间" />
+        <el-table-column show-overflow-tooltip sortable prop="registDate" label="入学时间" />
+        <el-table-column show-overflow-tooltip sortable prop="validateTime" label="有效时间" />
         <el-table-column show-overflow-tooltip sortable prop="creator" label="创建人" />
         <el-table-column show-overflow-tooltip sortable prop="extra" label="说明" />
-        <el-table-column show-overflow-tooltip sortable prop="id" label="StudentID" />
+        <el-table-column show-overflow-tooltip sortable prop="homeAddress" label="家庭住址" />
+        <el-table-column show-overflow-tooltip sortable prop="gift" label="赠送礼品" />
         <el-table-column fixed="right" label="操作" align="center" width="120">
           <template slot-scope="scope">
             <el-tooltip content="编辑" effect="dark" placement="top">
@@ -69,7 +82,7 @@
         :current-page="params.pageNum"
         :page-size="params.pageSize"
         :total="total"
-        :page-sizes="[1, 5, 10, 30]"
+        :page-sizes="[50, 500]"
         layout="total, prev, pager, next, sizes"
         background
         style="margin-top: 10px;float:right;margin-bottom: 10px;"
@@ -131,7 +144,7 @@
 
 <script>
 import JSEncrypt from 'jsencrypt'
-import { getStudents, createStudent, updateStudent, batchDeleteStudentByIds } from '@/api/business/student'
+import { getStudents, createStudent, updateStudent, batchDeleteStudentByIds, batchInClassByStudentIDs } from '@/api/business/student'
 
 export default {
   name: 'Student',
@@ -155,6 +168,7 @@ export default {
         openID: '',
         gender: 0,
         mobile: '',
+        course: '',
         pageNum: 1,
         pageSize: 10
       },
@@ -250,25 +264,7 @@ wLXapv+ZfsjG7NgdawIDAQAB
       this.dialogFormData.classHour = row.classHour
       this.dialogFormData.leftClassHour = row.leftClassHour
       this.dialogFormData.signAmount = row.signAmount
-      var statNum = 1
-      switch (row.status) {
-        case '未激活': {
-          statNum = 1
-        }
-        case '在读': {
-          statNum = 10
-        }
-        case '毕业': {
-          statNum = 20
-        }
-        case '退学': {
-          statNum = 90
-        }
-        case '删除': {
-          statNum = 99
-        }
-      }
-      this.dialogFormData.status = statNum
+      this.dialogFormData.status = row.status
       this.dialogFormData.mobile = row.mobile
       // this.dialogFormData.inDate = row.inDate
       // this.dialogFormData.roleIds = row.roleIds
@@ -337,6 +333,41 @@ wLXapv+ZfsjG7NgdawIDAQAB
       }
     },
 
+    // batchInClass
+    batchInClass() {
+      this.$confirm('此操作将批量销课, 是否继续?', '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }).then(async res => {
+        this.loading = true
+        const studentIDs = []
+        this.multipleSelection.forEach(x => {
+          studentIDs.push(x.id)
+        })
+        let msg = ''
+        try {
+          const { message } = await batchInClassByStudentIDs({ studentIDs: studentIDs })
+          msg = message
+        } finally {
+          this.loading = false
+        }
+
+        this.getTableData()
+        this.$message({
+          showClose: true,
+          message: msg,
+          type: 'success'
+        })
+      }).catch(() => {
+        this.$message({
+          showClose: true,
+          type: 'info',
+          message: '已取消销课'
+        })
+      })
+    },
+
     // 批量删除
     batchDelete() {
       this.$confirm('此操作将永久删除, 是否继续?', '提示', {
@@ -347,7 +378,7 @@ wLXapv+ZfsjG7NgdawIDAQAB
         this.loading = true
         const studentIDs = []
         this.multipleSelection.forEach(x => {
-          studentIDs.push(x.ID)
+          studentIDs.push(x.id)
         })
         let msg = ''
         try {

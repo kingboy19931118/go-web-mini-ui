@@ -40,3 +40,12 @@ export function batchDeleteStudentByIds(data) {
   })
 }
 
+// 批量销课
+export function batchInClassByStudentIDs(data) {
+  console.log(data)
+  return request({
+    url: '/api/student/inClass/batch',
+    method: 'delete',
+    data
+  })
+}
